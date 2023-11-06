@@ -1,12 +1,11 @@
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
-
-from shortener_app import models, schemas
-from shortener_app.database import SessionLocal, engine
-
 import validators
-import secrets
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.responses import RedirectResponse
+
+from .utility import generate_random_key
+from .import schema, models
+from .database import engine, SessionLocal
+from sqlalchemy.orm import Session
 
 app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
@@ -22,17 +21,16 @@ def get_db():
 
 @app.get('/')
 def read_root():
-    return 'Welcome to the url shortener API'
+    return 'Welcome to url shortener'
 
 
-@app.post("/url", response_model=schemas.URLInfo)
-def create_url(url: schemas.URLBase, db: Session = Depends(get_db)):
+@app.post('/url', response_model=schema.URLInfo)
+def create_url(url: schema.UrlBase, db: Session = Depends(get_db)):
     if not validators.url(url.target_url):
-        raise_bad_request(message="Your provided URL is not valid")
+        return raise_bad_request('Your provided URL is not valid')
 
-    chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    key = "".join(secrets.choice(chars) for _ in range(5))
-    secret_key = "".join(secrets.choice(chars) for _ in range(8))
+    key = generate_random_key(5)
+    secret_key = generate_random_key(8)
     db_url = models.URL(
         target_url=url.target_url, key=key, secret_key=secret_key
     )
@@ -45,17 +43,12 @@ def create_url(url: schemas.URLBase, db: Session = Depends(get_db)):
     return db_url
 
 
-@app.get("/{url_key}")
-def forward_to_target_url(
-        url_key: str,
-        request: Request,
-        db: Session = Depends(get_db)
-):
+@app.get('/{url_key}')
+def forward_to_target_url(url_key: str, request: Request, db: Session = Depends(get_db)):
     db_url = (
-        db.query(models.URL)
-        .filter(models.URL.key == url_key, models.URL.is_active)
-        .first()
+        db.query(models.URL).filter(models.URL.key == url_key, models.URL.is_active).first()
     )
+
     if db_url:
         return RedirectResponse(db_url.target_url)
     else:
@@ -67,5 +60,5 @@ def raise_bad_request(message):
 
 
 def raise_not_found(request):
-    message = f"URL '{request.url}' doesn't exist"
-    raise HTTPException(status_code=404, detail=message)
+    message = f'URL \'{request.url}\' doesn\'t exist'
+    raise HTTPException(status_code=400, detail=message)

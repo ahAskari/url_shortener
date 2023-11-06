@@ -1,6 +1,6 @@
 from sqlalchemy import Boolean, Column, Integer, String
 
-from shortener_app.database import Base
+from .database import Base
 
 
 class URL(Base):

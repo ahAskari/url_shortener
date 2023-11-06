@@ -1,8 +1,8 @@
-from pydantic import BaseModel
 from functools import lru_cache
+from pydantic_settings import BaseSettings
 
 
-class Settings(BaseModel):
+class Settings(BaseSettings):
     env_name: str = "Local"
     base_url: str = "http://localhost:8000"
     db_url: str = "sqlite:///./shortener.db"
@@ -13,5 +13,5 @@ class Settings(BaseModel):
 
 @lru_cache
 def get_settings() -> Settings:
-    setting = Settings()
-    return setting
+    settings = Settings()
+    return settings
